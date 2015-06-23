@@ -1,31 +1,24 @@
 package com.heungs.wesley.testapplication;
 
 import android.content.Context;
+import android.graphics.Point;
 import android.graphics.Rect;
 import android.util.AttributeSet;
-import android.util.Log;
 import android.view.MotionEvent;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Created by wesley on 2015-06-19.
  */
 public class DrawingViewGroup extends ZoomViewGroup {
     private boolean isEditingText = false;
-    private static float INVALID_COORDS = -1;
-    private float px = INVALID_COORDS;
-    private float py = INVALID_COORDS;
 
-    private Set<EditText> ets;
-
-    private EditText et;
-    private int etx;
-    private int ety;
-
+    private Map<EditText, Point> ets;
+    private EditText currentEdit;
 
     private DrawingView dv;
 
@@ -35,23 +28,26 @@ public class DrawingViewGroup extends ZoomViewGroup {
         setClickable(true);
         setFocusableInTouchMode(true);
 
-        ets = new HashSet<EditText>();
+        ets = new HashMap<EditText, Point>();
 
-        et = new EditText(context, attr);
-        et.setVisibility(GONE);
-        et.setHint("Words~");
-        et.setZ(1);
-        addView(et);
         dv = new DrawingView(context, attr);
         dv.setZ(0);
         addView(dv);
     }
 
     public void onLayout(boolean changed, int l, int t, int r, int b) {
-        if (et.getVisibility() == GONE) {
-            et.layout(0, 0, 0, 0);
-        } else {
-            et.layout(etx, ety, etx + et.getMeasuredWidth(), ety + et.getMeasuredHeight());
+        for (Map.Entry<EditText, Point> e : ets.entrySet()) {
+            EditText k = e.getKey();
+            Point v = e.getValue();
+            if (k.getVisibility() == GONE) {
+                k.layout(0, 0, 0, 0);
+            } else {
+                int x = (int) v.x;
+                int y = (int) v.y;
+                int mw = k.getMeasuredWidth();
+                int mh = k.getMeasuredHeight();
+                k.layout(x, y, x + mw, y + mh);
+            }
         }
         if (dv.getVisibility() != GONE) {
             dv.layout(l, t, l + dv.getMeasuredWidth(), t + dv.getMeasuredHeight());
@@ -59,53 +55,62 @@ public class DrawingViewGroup extends ZoomViewGroup {
     }
 
     public boolean onInterceptTouchEvent(MotionEvent ev) {
-        float x = ev.getX();
-        float y = ev.getY();
-
-        Rect etBB = new Rect();
-        et.getHitRect(etBB);
-
-        switch (ev.getAction() & MotionEvent.ACTION_MASK) {
-            case MotionEvent.ACTION_DOWN:
-                if (ev.getPointerCount() > 1 || etBB.contains(Math.round(x), Math.round(y))) {
-                    px = INVALID_COORDS;
-                    py = INVALID_COORDS;
-                } else {
-                    px = x;
-                    py = y;
-                }
-                break;
+        switch (ev.getActionMasked()) {
             case MotionEvent.ACTION_UP:
-                Log.d("mydebug", "Distance: " + Math.sqrt(Math.pow(px - ev.getX(), 2) + Math.pow(py - ev.getY(), 2)));
-                if (Math.sqrt(Math.pow(px - x, 2) + Math.pow(py - y, 2)) < 50) {
-                    isEditingText = !isEditingText;
+                final int x = (int) ev.getX();
+                final int y = (int) ev.getY();
+                final double distance = Math.pow(mLastTouchX - x, 2) + Math.pow(mLastTouchY - y, 2);
+                if (distance < 50 * 50) {
                     if (isEditingText) {
-                        etx = Math.round(px);
-                        ety = Math.round(py);
-                        et.setVisibility(VISIBLE);
-                        et.requestFocus();
+                        // Stop editing
+                        // Lose focus
+                        currentEdit.clearFocus();
+                        // Hide keyboard
+                        InputMethodManager imm = (InputMethodManager) (getContext().getSystemService(Context.INPUT_METHOD_SERVICE));
+                        if (imm != null) {
+                            imm.hideSoftInputFromWindow(currentEdit.getWindowToken(), 0);
+                        }
+                        // Destroy empty text boxes
+                        if (currentEdit.getText().toString().isEmpty()) {
+                            ets.remove(currentEdit);
+                            removeView(currentEdit);
+                            invalidate();
+                        }
+                        // Reset for another text box
+                        currentEdit = null;
+                        isEditingText = false;
+                    } else {
+                        // Start editing
+                        // Find an existing edit text
+                        for (EditText e : ets.keySet()) {
+                            Rect hr = new Rect();
+                            e.getHitRect(hr);
+                            if (hr.contains(x, y)) {
+                                currentEdit = e;
+                            }
+                        }
+                        // Otherwise... create a new EditText
+                        if (currentEdit == null) {
+                            currentEdit = new EditText(getContext(), null);
+                            currentEdit.setHint("Words~");
+                            currentEdit.setZ(1);
+                            ets.put(currentEdit, new Point((int) mLastTouchX, (int) mLastTouchY));
+                            addView(currentEdit);
+                        }
+                        currentEdit.requestFocus();
                         post(new Runnable() {
                             public void run() {
                                 InputMethodManager imm = (InputMethodManager) (getContext().getSystemService(Context.INPUT_METHOD_SERVICE));
                                 if (imm != null) {
-                                    imm.showSoftInput(et, 0);
+                                    imm.showSoftInput(currentEdit, 0);
                                 }
                             }
                         });
-                    } else {
-                        et.clearFocus();
-                        et.setVisibility(GONE);
-                        InputMethodManager imm = (InputMethodManager) (getContext().getSystemService(Context.INPUT_METHOD_SERVICE));
-                        if (imm != null) {
-                            imm.hideSoftInputFromWindow(et.getWindowToken(), 0);
-                        }
-                        // Process the text
-                        et.setText("");
+                        isEditingText = true;
                     }
                     invalidate();
-                    Log.d("mydebug", "isEditingText=" + isEditingText);
+                    return super.onInterceptTouchEvent(ev) | true;
                 }
-                break;
         }
 
         return super.onInterceptTouchEvent(ev);

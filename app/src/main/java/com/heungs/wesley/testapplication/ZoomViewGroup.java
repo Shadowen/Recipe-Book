@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Rect;
 import android.util.AttributeSet;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.ScaleGestureDetector;
 import android.view.View;
@@ -13,25 +14,24 @@ import android.view.ViewParent;
 
 public class ZoomViewGroup extends ViewGroup {
 
-    private static final int INVALID_POINTER_ID = 1;
-    private int mActivePointerId = INVALID_POINTER_ID;
+    protected static final int INVALID_POINTER_ID = 1;
+    protected int mActivePointerId = INVALID_POINTER_ID;
 
     private float mScaleFactor = 1;
     private ScaleGestureDetector mScaleDetector;
     private Matrix mScaleMatrix = new Matrix();
     private Matrix mScaleMatrixInverse = new Matrix();
 
-    private float mPosX;
-    private float mPosY;
+    protected float mPosX;
+    protected float mPosY;
     private Matrix mTranslateMatrix = new Matrix();
     private Matrix mTranslateMatrixInverse = new Matrix();
 
-    private float mLastTouchX;
-    private float mLastTouchY;
+    protected float mLastTouchX;
+    protected float mLastTouchY;
 
-    private float mFocusY;
-
-    private float mFocusX;
+    protected float mFocusX;
+    protected float mFocusY;
 
     private float[] mInvalidateWorkingArray = new float[6];
     private float[] mDispatchTouchEventWorkingArray = new float[2];
@@ -125,6 +125,8 @@ public class ZoomViewGroup extends ViewGroup {
 
     @Override
     public boolean onInterceptTouchEvent(MotionEvent ev) {
+        Log.d("mydebug", "ZVG onInterceptTouchEvent");
+
         mOnTouchEventWorkingArray[0] = ev.getX();
         mOnTouchEventWorkingArray[1] = ev.getY();
         mOnTouchEventWorkingArray = scaledPointsToScreenPoints(mOnTouchEventWorkingArray);
