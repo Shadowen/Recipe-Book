@@ -146,23 +146,25 @@ public class ZoomViewGroup extends ViewGroup {
             }
 
             case MotionEvent.ACTION_MOVE: {
-                // Find the index of the active pointer and fetch its position
-                final int pointerIndex = ev.findPointerIndex(mActivePointerId);
-                final float x = ev.getX(pointerIndex);
-                final float y = ev.getY(pointerIndex);
+                if (ev.getPointerCount() == 2) {
+                    // Find the index of the active pointer and fetch its position
+                    final int pointerIndex = ev.findPointerIndex(mActivePointerId);
+                    final float x = ev.getX(pointerIndex);
+                    final float y = ev.getY(pointerIndex);
 
-                final float dx = x - mLastTouchX;
-                final float dy = y - mLastTouchY;
+                    final float dx = x - mLastTouchX;
+                    final float dy = y - mLastTouchY;
 
-                //mPosX += dx;
-                //mPosY += dy;
-                //mTranslateMatrix.preTranslate(dx, dy);
-                //mTranslateMatrix.invert(mTranslateMatrixInverse);
+                    mPosX += dx;
+                    mPosY += dy;
+                    mTranslateMatrix.preTranslate(dx, dy);
+                    mTranslateMatrix.invert(mTranslateMatrixInverse);
 
-                //mLastTouchX = x;
-                //mLastTouchY = y;
+                    mLastTouchX = x;
+                    mLastTouchY = y;
 
-                invalidate();
+                    invalidate();
+                }
                 break;
             }
 
